@@ -290,17 +290,30 @@ fn redraw_containers(
     let should_use_animations = !state.pending_sync.should_skip_animations() && (
       (is_opening && config.value.animations.window_open.enabled) ||
       (!is_opening && config.value.animations.window_move.enabled)
-    );
+    ) && !matches!(window.state(), WindowState::Fullscreen(_));
 
     // Determine the rect and opacity to use
     let (rect_to_use, opacity_override) = if should_use_animations {
-      state.animation_manager.start_animation_if_needed(
-        window.id(),
-        is_opening,
-        target_rect.clone(),
-        previous_target,
-        config,
-      )
+      // Extract the window state before borrowing mutably to avoid conflicts
+      let window_id = window.id();
+      let is_fullscreen = state.container_by_id(window_id)
+        .and_then(|c| c.as_window_container().ok())
+        .map(|w| matches!(w.state(), WindowState::Fullscreen(_)))
+        .unwrap_or(false);
+      
+      // Now call the animation method with the extracted info
+      let animation_result = {
+        let animation_manager = &mut state.animation_manager;
+        animation_manager.start_animation_if_needed(
+          window_id,
+          is_opening,
+          target_rect.clone(),
+          previous_target,
+          config,
+          is_fullscreen,
+        )
+      };
+      animation_result
     } else {
       (target_rect.clone(), None)
     };

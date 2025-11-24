@@ -154,6 +154,10 @@ fn set_non_tiling(
 
       // Mark as fullscreen immediately to ensure browser APIs work during animation.
       if matches!(target_state, WindowState::Fullscreen(_)) {
+        // Clear any existing animation data for this window to prevent conflicts
+        state.window_target_positions.remove(&window.id());
+        state.animation_manager.remove_animation(&window.id());
+        
         if let Err(err) = window.native().mark_fullscreen(true) {
           warn!("Failed to mark window as fullscreen immediately: {}", err);
         }
@@ -195,7 +199,14 @@ fn set_non_tiling(
         .pending_sync
         .queue_container_to_redraw(non_tiling_window.clone())
         .queue_containers_to_redraw(workspace.tiling_children())
-        .queue_workspace_to_reorder(workspace);
+        .queue_workspace_to_reorder(workspace.clone());
+
+      // Force skip animations for sibling windows to prevent layout issues
+      // when one window transitions to fullscreen
+      for child in workspace.tiling_children() {
+        state.window_target_positions.remove(&child.id());
+        state.animation_manager.remove_animation(&child.id());
+      }
 
       // Mark as fullscreen immediately to ensure browser APIs work during animation.
       if matches!(target_state, WindowState::Fullscreen(_)) {
