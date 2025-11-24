@@ -354,6 +354,13 @@ fn redraw_containers(
         warn!("Failed to mark window as fullscreen: {}", err);
       }
     } else if is_transitioning_fullscreen {
+      // Clear any remaining animation data when transitioning out of fullscreen
+      // to prevent conflicts with tiling layout restoration.
+      // This ensures clean state when returning from fullscreen to tiling.
+      let window_id = window.id();
+      state.window_target_positions.remove(&window_id);
+      state.animation_manager.remove_animation(&window_id);
+      
       if let Err(err) = window.native().mark_fullscreen(false) {
         warn!("Failed to unmark window as fullscreen: {}", err);
       }

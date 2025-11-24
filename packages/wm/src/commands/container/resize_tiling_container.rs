@@ -12,16 +12,16 @@ pub fn resize_tiling_container(
 
   // Ignore cases where the container is the only child.
   if tiling_siblings.is_empty() {
-    container_to_resize.set_tiling_size(1.);
+    container_to_resize.set_tiling_size(1.0);
     return;
   }
 
-  // Prevent the container from being smaller than the minimum size, and
+  // Prevents the container from being smaller than the minimum size, and
   // larger than the space available from sibling containers.
   #[allow(clippy::cast_precision_loss)]
   let clamped_target_size = target_size.clamp(
     MIN_TILING_SIZE,
-    1. - (tiling_siblings.len() as f32 * MIN_TILING_SIZE),
+    1.0 - (tiling_siblings.len() as f32 * MIN_TILING_SIZE),
   );
 
   let size_delta = clamped_target_size - container_to_resize.tiling_size();
@@ -34,7 +34,7 @@ pub fn resize_tiling_container(
     });
 
   // Distribute the available tiling size amongst its siblings.
-  for sibling in &tiling_siblings {
+  for (_index, sibling) in tiling_siblings.iter().enumerate() {
     // Get percentage of resize that affects this container. Siblings are
     // resized in proportion to their current size (i.e. larger containers
     // are shrunk more).
@@ -42,7 +42,9 @@ pub fn resize_tiling_container(
       (sibling.tiling_size() - MIN_TILING_SIZE) / available_size;
 
     let size_delta = resize_factor * size_delta;
+    let old_size = sibling.tiling_size();
+    let new_size = old_size - size_delta;
 
-    sibling.set_tiling_size(sibling.tiling_size() - size_delta);
+    sibling.set_tiling_size(new_size);
   }
 }

@@ -7,7 +7,7 @@ use crate::{
     move_container_within_tree, replace_container, resize_tiling_container,
   },
   models::{Container, InsertionTarget, WindowContainer},
-  traits::{CommonGetters, TilingSizeGetters, WindowGetters},
+  traits::{CommonGetters, TilingSizeGetters, WindowGetters, PositionGetters},
   user_config::UserConfig,
   wm_state::WmState,
 };
@@ -49,13 +49,27 @@ fn set_tiling(
   let workspace =
     window.workspace().context("Window has no workspace.")?;
 
+  // Clear any existing animation data for this window to prevent conflicts
+  // when transitioning from fullscreen back to tiling.
+  // This ensures clean state during fullscreen-to-tiling transitions.
+  state.window_target_positions.remove(&window.id());
+  state.animation_manager.remove_animation(&window.id());
+
   // Check whether insertion target is still valid.
+  // Enhanced validation for fullscreen transitions:
+  // - Check if target parent still exists and is in a displayed workspace
+  // - Verify the target parent is still attached to the container tree
+  // This prevents issues where windows can't be properly reinserted after fullscreen
   let insertion_target =
     window.insertion_target().filter(|insertion_target| {
-      insertion_target
-        .target_parent
-        .workspace()
-        .is_some_and(|workspace| workspace.is_displayed())
+      let target_workspace = insertion_target.target_parent.workspace();
+      let is_valid_workspace = target_workspace
+        .is_some_and(|workspace| workspace.is_displayed());
+      
+      // Additional check: ensure target parent is still attached to the tree
+      let is_attached = insertion_target.target_parent.parent().is_some();
+      
+      is_valid_workspace && is_attached
     });
 
   // Get the position in the tree to insert the new tiling window. This
@@ -106,6 +120,28 @@ fn set_tiling(
     // siblings, scale to 0.5 * (2/3) to maintain proportional sizing.
     let target_size = insertion_target.prev_tiling_size * size_scale;
     resize_tiling_container(&tiling_window.clone().into(), target_size);
+  } else {
+    // If no insertion target, use proper tiling size redistribution
+    // This ensures windows get correct size when returning from fullscreen
+    // by using the existing tiling resize system which properly handles
+    // proportional sizing among all siblings
+    let sibling_count = tiling_window.tiling_siblings().count();
+    let default_size = 1.0 / (sibling_count + 1) as f32;
+    
+    
+    // Use the proper tiling resize system to redistribute space proportionally
+    // This ensures that when a window returns from fullscreen, all windows
+    // in the workspace get properly resized according to tiling rules
+    resize_tiling_container(&tiling_window.clone().into(), default_size);
+    
+    // DEBUG: Log the actual size after resize
+    if let Ok(actual_rect) = tiling_window.to_rect() {
+      info!(
+        "DEBUG: After resize - Window ID: {:?}, Actual rect: {}x{} at ({}, {}), Size: {:.3}",
+        window.id(), actual_rect.width(), actual_rect.height(), actual_rect.x(), actual_rect.y(),
+        tiling_window.tiling_size()
+      );
+    }
   }
 
   state
@@ -207,6 +243,10 @@ fn set_non_tiling(
         state.window_target_positions.remove(&child.id());
         state.animation_manager.remove_animation(&child.id());
       }
+
+      // Clear animation data for the transitioning window as well
+      state.window_target_positions.remove(&non_tiling_window.id());
+      state.animation_manager.remove_animation(&non_tiling_window.id());
 
       // Mark as fullscreen immediately to ensure browser APIs work during animation.
       if matches!(target_state, WindowState::Fullscreen(_)) {

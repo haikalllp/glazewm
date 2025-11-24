@@ -94,7 +94,12 @@ impl NonTilingWindow {
       self.native().clone(),
       Some(self.state()),
       self.border_delta(),
-      self.floating_placement(),
+      // Reset floating placement to current workspace rect to ensure proper tiling sizing.
+      // This prevents windows from maintaining floating size when returning from fullscreen
+      // by using the workspace bounds instead of the previous floating placement.
+      self.workspace()
+        .and_then(|ws| ws.to_rect().ok())
+        .unwrap_or_else(|| self.floating_placement()),
       self.has_custom_floating_placement(),
       gaps_config,
       self.done_window_rules(),
