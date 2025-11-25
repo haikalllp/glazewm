@@ -211,8 +211,14 @@ impl AnimationManager {
     previous_target: Option<&Rect>,
     threshold: i32,
     config: &UserConfig,
+    is_fullscreen: bool,
   ) -> bool {
     let existing_animation = self.get_animation(window_id);
+
+    // Skip animations for fullscreen transitions to prevent conflicts
+    if is_fullscreen {
+      return false;
+    }
 
     if is_opening && config.value.animations.window_open.enabled {
       existing_animation.is_none()
@@ -255,6 +261,7 @@ impl AnimationManager {
     target_rect: Rect,
     previous_target: Option<Rect>,
     config: &UserConfig,
+    is_fullscreen: bool,
   ) -> (Rect, Option<OpacityValue>) {
     let threshold = config.value.animations.window_move.threshold_px as i32;
 
@@ -269,6 +276,7 @@ impl AnimationManager {
       previous_target.as_ref(),
       threshold,
       config,
+      is_fullscreen,
     );
 
     // Start new animation if needed
@@ -282,7 +290,7 @@ impl AnimationManager {
       } else if let Some(prev_target) = previous_target {
         // Determine the start position for the new animation
         // Cancel and replace: start from current animated position if an animation is running
-        let start_rect = if let Some(existing_anim) = &existing_animation {
+        let start_rect: Rect = if let Some(existing_anim) = &existing_animation {
           existing_anim.current_rect()
         } else {
           prev_target
@@ -312,7 +320,8 @@ impl AnimationManager {
 
     // Get the current animation state (re-fetch after potentially starting new animation)
     if let Some(animation) = self.get_animation(&window_id) {
-      (animation.current_rect(), animation.current_opacity())
+      let current_rect: Rect = animation.current_rect();
+      (current_rect, animation.current_opacity())
     } else {
       (target_rect, None)
     }
