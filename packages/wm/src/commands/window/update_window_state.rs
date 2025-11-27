@@ -17,6 +17,7 @@ use crate::{
 /// Adds the window for redraw if there is a state change.
 ///
 /// Returns the window after the state change.
+#[allow(clippy::needless_pass_by_value)]
 pub fn update_window_state(
   window: WindowContainer,
   target_state: WindowState,
@@ -145,6 +146,7 @@ fn set_tiling(
 
 /// Updates the state of a window to be either `WindowState::Floating`,
 /// `WindowState::Fullscreen`, or `WindowState::Minimized`.
+#[allow(clippy::needless_pass_by_value)]
 fn set_non_tiling(
   window: WindowContainer,
   target_state: WindowState,

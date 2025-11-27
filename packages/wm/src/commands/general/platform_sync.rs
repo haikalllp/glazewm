@@ -298,15 +298,13 @@ fn redraw_containers(
       let window_id = window.id();
       let is_fullscreen = state.container_by_id(window_id)
         .and_then(|c| c.as_window_container().ok())
-        .map(|w| matches!(w.state(), WindowState::Fullscreen(_)))
-        .unwrap_or(false);
+        .is_some_and(|w| matches!(w.state(), WindowState::Fullscreen(_)));
       let is_floating = state.container_by_id(window_id)
         .and_then(|c| c.as_window_container().ok())
-        .map(|w| matches!(w.state(), WindowState::Floating(_)))
-        .unwrap_or(false);
+        .is_some_and(|w| matches!(w.state(), WindowState::Floating(_)));
 
       // Now call the animation method with the extracted info
-      let animation_result = {
+      {
         let animation_manager = &mut state.animation_manager;
         animation_manager.start_animation_if_needed(
           window_id,
@@ -317,8 +315,7 @@ fn redraw_containers(
           is_fullscreen,
           is_floating,
         )
-      };
-      animation_result
+      }
     } else {
       (target_rect.clone(), None)
     };

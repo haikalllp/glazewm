@@ -269,7 +269,7 @@ impl WindowManager {
 
         if let Some(name) = &args.workspace {
           focus_workspace(
-            WorkspaceTarget::Name(name.to_string()),
+            WorkspaceTarget::Name(name.clone()),
             state,
             config,
           )?;
@@ -347,7 +347,7 @@ impl WindowManager {
             if let Some(name) = &args.workspace {
               move_window_to_workspace(
                 window.clone(),
-                WorkspaceTarget::Name(name.to_string()),
+                WorkspaceTarget::Name(name.clone()),
                 state,
                 config,
               )?;

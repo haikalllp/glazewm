@@ -442,7 +442,7 @@ pub struct AnimationEffectsConfig {
   pub duration_ms: u32,
   pub easing: EasingFunction,
   /// Type of animation effects to apply.
-  /// Can be: "none", "fade", "slide", "scale", "fade_slide", "fade_scale", "slide_scale", "fade_slide_scale"
+  /// Can be: "none", "fade", "slide", "scale", "`fade_slide`", "`fade_scale`", "`slide_scale`", "`fade_slide_scale`"
   pub animation_type: AnimationEffectType,
 }
 
@@ -488,6 +488,7 @@ pub enum AnimationEffectType {
 
 impl AnimationEffectType {
   /// Returns whether fade effect is enabled.
+  #[must_use]
   pub fn has_fade(&self) -> bool {
     matches!(
       self,
@@ -499,6 +500,7 @@ impl AnimationEffectType {
   }
 
   /// Returns whether slide effect is enabled.
+  #[must_use]
   pub fn has_slide(&self) -> bool {
     matches!(
       self,
@@ -510,6 +512,7 @@ impl AnimationEffectType {
   }
 
   /// Returns whether scale effect is enabled.
+  #[must_use]
   pub fn has_scale(&self) -> bool {
     matches!(
       self,

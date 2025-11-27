@@ -124,7 +124,7 @@ impl AnimationManager {
 
       tokio::spawn(async move {
         let mut interval = tokio::time::interval(
-          tokio::time::Duration::from_millis(frame_time_ms as u64)
+          tokio::time::Duration::from_millis(u64::from(frame_time_ms))
         );
         interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
 
@@ -141,7 +141,7 @@ impl AnimationManager {
   }
 
   /// Updates all active animations and redraws windows that are animating.
-  #[allow(dead_code)] // Public API method, may be used externally
+  #[allow(dead_code, clippy::unused_self)] // Public API method, may be used externally
   pub fn update(
     &mut self,
     state: &mut WmState,
@@ -150,7 +150,7 @@ impl AnimationManager {
     Self::update_internal(state, config)
   }
 
-  /// Internal update method that accesses animation_manager through state.
+  /// Internal update method that accesses `animation_manager` through state.
   pub(crate) fn update_internal(
     state: &mut WmState,
     config: &UserConfig,
@@ -166,8 +166,7 @@ impl AnimationManager {
       .filter(|id| {
         state.animation_manager
           .get_animation(id)
-          .map(|anim| !anim.is_complete())
-          .unwrap_or(false)
+          .is_some_and(|anim| !anim.is_complete())
       })
       .collect();
 
@@ -203,6 +202,7 @@ impl AnimationManager {
   }
 
   /// Determines whether a new animation should be started for a window.
+  #[allow(clippy::too_many_arguments)]
   fn should_start_new_animation(
     &self,
     window_id: &Uuid,
@@ -260,6 +260,7 @@ impl AnimationManager {
 
   /// Starts an animation if needed and returns the current animation state.
   /// Returns (rect, opacity) tuple.
+  #[allow(clippy::too_many_arguments)]
   pub fn start_animation_if_needed(
     &mut self,
     window_id: Uuid,
@@ -270,7 +271,7 @@ impl AnimationManager {
     is_fullscreen: bool,
     is_floating: bool,
   ) -> (Rect, Option<OpacityValue>) {
-    let threshold = config.value.animations.window_move.threshold_px as i32;
+    let threshold = config.value.animations.window_move.threshold_px.cast_signed();
 
     // Check if there's already an animation for this window
     let existing_animation = self.get_animation(&window_id).cloned();
@@ -309,8 +310,7 @@ impl AnimationManager {
         // Choose animation config based on whether this is a cancel-and-replace
         let animation_config = if is_cancel_and_replace {
           // Use fixed short duration for interrupted animations to ensure consistent timing
-          let movement_config = config.value.animations.window_move.clone();
-          movement_config
+          config.value.animations.window_move.clone()
         } else {
           // Use config duration directly
           config.value.animations.window_move.clone()

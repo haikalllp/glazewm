@@ -104,6 +104,7 @@ impl WindowAnimationState {
 
   /// Whether the animation has completed.
   /// NOTE: Progress is clamped to [0.0, 1.0], so exact comparison is safe.
+  #[allow(clippy::float_cmp)]
   pub fn is_complete(&self) -> bool {
     self.progress() == 1.0
   }
@@ -116,7 +117,7 @@ impl WindowAnimationState {
       &self.target_rect,
       progress,
       &self.easing,
-      |start, end, eased_progress| start.interpolate(end, eased_progress),
+      wm_common::Rect::interpolate,
     )
   }
 
@@ -130,7 +131,7 @@ impl WindowAnimationState {
         end,
         progress,
         &self.easing,
-        |start, end, eased_progress| start.interpolate(end, eased_progress),
+        wm_common::OpacityValue::interpolate,
       ))
     } else {
       None
