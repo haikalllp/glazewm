@@ -289,7 +289,7 @@ fn redraw_containers(
     // Determine if animations should be used for this window based on type
     let should_use_animations = !state.pending_sync.should_skip_animations() && (
       (is_opening && config.value.animations.window_open.enabled) ||
-      (!is_opening && config.value.animations.window_move.enabled)
+      (!is_opening && config.value.animations.window_move.enabled && !matches!(window.state(), WindowState::Floating(_)))
     ) && !matches!(window.state(), WindowState::Fullscreen(_));
 
     // Determine the rect and opacity to use
@@ -299,6 +299,10 @@ fn redraw_containers(
       let is_fullscreen = state.container_by_id(window_id)
         .and_then(|c| c.as_window_container().ok())
         .map(|w| matches!(w.state(), WindowState::Fullscreen(_)))
+        .unwrap_or(false);
+      let is_floating = state.container_by_id(window_id)
+        .and_then(|c| c.as_window_container().ok())
+        .map(|w| matches!(w.state(), WindowState::Floating(_)))
         .unwrap_or(false);
 
       // Now call the animation method with the extracted info
@@ -311,6 +315,7 @@ fn redraw_containers(
           previous_target,
           config,
           is_fullscreen,
+          is_floating,
         )
       };
       animation_result

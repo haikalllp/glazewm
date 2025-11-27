@@ -212,11 +212,17 @@ impl AnimationManager {
     threshold: i32,
     config: &UserConfig,
     is_fullscreen: bool,
+    is_floating: bool,
   ) -> bool {
     let existing_animation = self.get_animation(window_id);
 
-    // Skip animations for fullscreen transitions to prevent conflicts
+    // Skip animations for fullscreen transitions
     if is_fullscreen {
+      return false;
+    }
+
+    // Skip animations for floating windows
+    if is_floating {
       return false;
     }
 
@@ -262,6 +268,7 @@ impl AnimationManager {
     previous_target: Option<Rect>,
     config: &UserConfig,
     is_fullscreen: bool,
+    is_floating: bool,
   ) -> (Rect, Option<OpacityValue>) {
     let threshold = config.value.animations.window_move.threshold_px as i32;
 
@@ -277,6 +284,7 @@ impl AnimationManager {
       threshold,
       config,
       is_fullscreen,
+      is_floating,
     );
 
     // Start new animation if needed
