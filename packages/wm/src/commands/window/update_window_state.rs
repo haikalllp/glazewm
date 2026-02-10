@@ -17,6 +17,7 @@ use crate::{
 /// Adds the window for redraw if there is a state change.
 ///
 /// Returns the window after the state change.
+#[allow(clippy::needless_pass_by_value)]
 pub fn update_window_state(
   window: WindowContainer,
   target_state: WindowState,
@@ -48,6 +49,16 @@ fn set_tiling(
 
   let workspace =
     window.workspace().context("Window has no workspace.")?;
+
+  // Check if we're returning from fullscreen to handle animation cleanup
+  let is_returning_from_fullscreen = matches!(window.state(), WindowState::Fullscreen(_));
+
+  // Unmark fullscreen immediately to prevent sizing conflicts during transition
+  if is_returning_from_fullscreen {
+    if let Err(err) = window.native().mark_fullscreen(false) {
+      warn!("Failed to unmark window as fullscreen immediately: {}", err);
+    }
+  }
 
   // Check whether insertion target is still valid.
   let insertion_target =
@@ -111,13 +122,31 @@ fn set_tiling(
   state
     .pending_sync
     .queue_containers_to_redraw(target_parent.tiling_children())
-    .queue_workspace_to_reorder(workspace);
+    .queue_workspace_to_reorder(workspace.clone());
+
+  // Handle animation cleanup when returning from fullscreen to ensure exact geometry
+  if is_returning_from_fullscreen {
+    // Skip animations for this sync only to ensure exact tiling geometry
+    state.pending_sync.set_skip_animations(true);
+
+    // Clear animation state and stale target positions for the returning window
+    state.window_target_positions.remove(&tiling_window.id());
+    state.animation_manager.remove_animation(&tiling_window.id());
+
+    // Clear animation state and stale target positions for all tiling siblings
+    // to prevent layout conflicts when one window returns from fullscreen
+    for child in workspace.tiling_children() {
+      state.window_target_positions.remove(&child.id());
+      state.animation_manager.remove_animation(&child.id());
+    }
+  }
 
   Ok(tiling_window.into())
 }
 
 /// Updates the state of a window to be either `WindowState::Floating`,
 /// `WindowState::Fullscreen`, or `WindowState::Minimized`.
+#[allow(clippy::needless_pass_by_value)]
 fn set_non_tiling(
   window: WindowContainer,
   target_state: WindowState,
@@ -149,8 +178,19 @@ fn set_non_tiling(
         state.pending_sync.queue_workspace_to_reorder(workspace);
       }
 
-      window.set_state(target_state);
+      window.set_state(target_state.clone());
       state.pending_sync.queue_container_to_redraw(window.clone());
+
+      // Mark as fullscreen immediately to ensure browser APIs work during animation.
+      if matches!(target_state, WindowState::Fullscreen(_)) {
+        // Clear any existing animation data for this window to prevent conflicts
+        state.window_target_positions.remove(&window.id());
+        state.animation_manager.remove_animation(&window.id());
+
+        if let Err(err) = window.native().mark_fullscreen(true) {
+          warn!("Failed to mark window as fullscreen immediately: {}", err);
+        }
+      }
 
       Ok(window.into())
     }
@@ -188,7 +228,21 @@ fn set_non_tiling(
         .pending_sync
         .queue_container_to_redraw(non_tiling_window.clone())
         .queue_containers_to_redraw(workspace.tiling_children())
-        .queue_workspace_to_reorder(workspace);
+        .queue_workspace_to_reorder(workspace.clone());
+
+      // Force skip animations for sibling windows to prevent layout issues
+      // when one window transitions to fullscreen
+      for child in workspace.tiling_children() {
+        state.window_target_positions.remove(&child.id());
+        state.animation_manager.remove_animation(&child.id());
+      }
+
+      // Mark as fullscreen immediately to ensure browser APIs work during animation.
+      if matches!(target_state, WindowState::Fullscreen(_)) {
+        if let Err(err) = non_tiling_window.native().mark_fullscreen(true) {
+          warn!("Failed to mark window as fullscreen immediately: {}", err);
+        }
+      }
 
       Ok(non_tiling_window.into())
     }
